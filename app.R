@@ -8,41 +8,56 @@
 #
 
 library(shiny)
+library(magrittr)
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
-   
-   # Application title
-   titlePanel("Old Faithful Geyser Data"),
-   
-   # Sidebar with a slider input for number of bins 
-   sidebarLayout(
-      sidebarPanel(
-         sliderInput("bins",
-                     "Number of bins:",
-                     min = 1,
-                     max = 50,
-                     value = 30)
-      ),
-      
-      # Show a plot of the generated distribution
-      mainPanel(
-         plotOutput("distPlot")
-      )
-   )
+                theme ="gallery.css",
+                tags$head(
+                    tags$link(rel = "stylesheet", type = "text/css",
+                              href = "gallery.css")
+                ),
+                
+                # Application title
+                
+                titlePanel(htmlOutput("current_process")),
+                # Sidebar with a slider input for number of bins 
+                navbarPage("My_Application",id = "My_Application",
+                           tabPanel("Upload_data",id = "Upload_data",
+                                    fileInput("file1", "Choose CSV File",
+                                              multiple = TRUE,
+                                              accept = c("text/csv",
+                                                         "text/comma-separated-values,text/plain",
+                                                         ".csv"))),
+                           tabPanel("Normalisation",id="Normalisation",
+                                    radioButtons("normalize_with",
+                                                 label = "normalize_with",
+                                                 choices = c("deseq2","voom"),
+                                                 selected = "deseq2")
+                                    ),
+                           tabPanel("Component 3")
+                )
 )
 
+
 # Define server logic required to draw a histogram
-server <- function(input, output) {
-   
-   output$distPlot <- renderPlot({
-      # generate bins based on input$bins from ui.R
-      x    <- faithful[, 2] 
-      bins <- seq(min(x), max(x), length.out = input$bins + 1)
-      
-      # draw the histogram with the specified number of bins
-      hist(x, breaks = bins, col = 'darkgray', border = 'white')
-   })
+server <- function(input, output, session) {
+    variables = reactiveValues(current_task = "<b>Welcome, 
+                               <br> bla bla bla <br>
+                                   Please upload data below<b>")
+    df<- reactive({
+        read.csv(input$file1$datapath)
+    })
+    
+    
+    
+    observeEvent(input$file1, {
+        variables$current_task <<- "Uploaded the data ..."
+        updateTabsetPanel(session,"My_Application",
+                          selected = "Normalisation")
+    })
+    output$current_process <- renderText(paste0(":~$",
+                                                variables$current_task))
 }
 
 # Run the application 
