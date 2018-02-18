@@ -6,7 +6,10 @@ read_df <- data.frame()
 load("normalized_df2.rda")
 splited_df_list <- list(train_x = data.frame(), train_y = vector(),
                         test_x = data.frame(), test_y = vector())
-model_list <<- list()
+model_list <- list()
+selected_genes <- vector()
+selected_genes_df <- data.frame()
+
 # Define UI for application that draws a histogram
 ui <- fluidPage(
                 theme ="gallery.css",
@@ -36,10 +39,19 @@ ui <- fluidPage(
                                     column(8, 
                                            selectInput("run_with",label = "select important genes with",choices = c("RF_up_sampling","RF_smote_sampling","glm_up_sampling","glm_smote_sampling")),
                                            actionButton(inputId = "add_model_button", label = "Add model"),
-                                           actionButton(inputId = "remove_model_button", label = "Remove model")),
+                                           actionButton(inputId = "remove_model_button", label = "Remove model"),
+                                           actionButton(inputId = "use_models_button", label = "use selected models"),
+                                           numericInput(inputId = "num_genes", label = "Number of genes to select",value = 1)),
+                                    
                                     column(12,plotOutput("roc")))),
                            
-                           tabPanel("Select genes"),
+                           tabPanel("Visualize selected genes",
+                                    actionButton(inputId = "svm_button", label = "Train SVM on the selected genes"),
+                                    radioButtons("barplot_with",label = "update_plot_scale_each_gene ?",choices = c("yes","no"),selected = "yes"),
+                                    plotOutput("barplot")),
+                           
+                           tabPanel("SVM",
+                                    verbatimTextOutput("confusion_matrix")),
                                     
                            
                            
@@ -53,7 +65,7 @@ ui <- fluidPage(
 #-------------------------------------------------------------------------------
 server <- function(input, output, session) {
 #-------------------------------------------------------------------------------
-    variables = reactiveValues(current_task = text_welcome)
+    variables = reactiveValues(current_task = text_welcome, config_df2 = NULL)
 #-------------------------------------------------------------------------------
 # Buttons
     observeEvent(input$read_button,{
@@ -88,17 +100,37 @@ server <- function(input, output, session) {
         
     })
     
+    observeEvent(input$use_models_button, {
+        selected_genes <<- selectv(model_list,train_x =  splited_df_list[[1]],
+                                      train_y = splited_df_list[[2]],num_genes = input$num_genes)
+        selected_genes_df <<- generate_selected_genes_df(selected_geness = selected_genes,
+                                                         splited_df_list,
+                                                         with = input$split_with)
+        updateTabsetPanel(session,"My_Application", selected = "Visualize selected genes")
+        
+    })
     
+    observeEvent(input$svm_button, {
+        updateTabsetPanel(session,"My_Application", selected = "SVM")
+        svmm <- svm(selected_genes_df)
+        output$confusion_matrix <- renderPrint(svmm)
+    })
+    
+    
+    output$barplot <- renderPlot({
+        compare_selected_features_barplot(selected_genes_df, input$barplot_with)},
+        height = 1000, width = 900)
     
     # settings button
     observeEvent(input$config_update,{
-        config_df[,which(
-            colnames(config_df) == input$config_variable)] <<- input$config_value
+        variables$config_df2[,which(
+            colnames(variables$config_df2) == input$config_variable)] <<- input$config_value
+        
     })
     
     observeEvent(input$config_variable,{
         updateTextInput(session, "config_value", value = 
-                            paste(config_df[,which(colnames(config_df) == input$config_variable)]))
+                            paste(variables$config_df2[,which(colnames(variables$config_df2) == input$config_variable)]))
     })
     #---------------------------------------------------------------------------
     output$current_process <- renderText(paste0(":~$",

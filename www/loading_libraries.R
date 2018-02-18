@@ -7,10 +7,14 @@ library(magrittr)
 library("BiocParallel")
 library(DESeq2)
 library("caTools") # for sample.split()
-
+library("reshape")
 library(shiny)
 
 
+source("www/generate_selected_genes_df.R")
+source("www/select.R")
+source("www/svm.R")
+source("www/barplot.R")
 source("www/config_df.R")
 source("www/texts.R")
 source("www/read_fun.R")
